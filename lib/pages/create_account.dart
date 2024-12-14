@@ -1,10 +1,8 @@
-// ignore_for_file: prefer_const_constructors, use_key_in_widget_constructors
+// ignore_for_file: prefer_const_constructors, use_key_in_widget_constructors, use_build_context_synchronously, library_private_types_in_public_api
 
 import 'package:flutter/material.dart';
-
-void main() {
-  runApp(TravelTideApp());
-}
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as p;
 
 class TravelTideApp extends StatelessWidget {
   @override
@@ -16,13 +14,105 @@ class TravelTideApp extends StatelessWidget {
   }
 }
 
-class CreateAccountScreen extends StatelessWidget {
+class CreateAccountScreen extends StatefulWidget {
+  @override
+  _CreateAccountScreenState createState() => _CreateAccountScreenState();
+}
+
+class _CreateAccountScreenState extends State<CreateAccountScreen> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController countryController = TextEditingController();
+
+  String? errorMessage;
+
+  // Updated email validation
+  bool isValidEmail(String email) {
+    final regex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    return regex.hasMatch(email);
+  }
+
+  void _validateAndSubmit() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    final confirmPassword = confirmPasswordController.text.trim();
+    final name = nameController.text.trim();
+    final country = countryController.text.trim();
+
+    if (email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty ||
+        name.isEmpty ||
+        country.isEmpty) {
+      setState(() {
+        errorMessage = 'All fields are required';
+      });
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setState(() {
+        errorMessage = 'Invalid email format';
+      });
+      return;
+    }
+
+    if (password != confirmPassword) {
+      setState(() {
+        errorMessage = 'Passwords do not match';
+      });
+      return;
+    }
+
+    setState(() {
+      errorMessage = null;
+    });
+
+    try {
+      final isEmailTaken = await DatabaseHelper.instance.isEmailExists(email);
+      if (isEmailTaken) {
+        setState(() {
+          errorMessage = 'Email already exists. Please use a different email.';
+        });
+        return;
+      }
+
+      await DatabaseHelper.instance.insertUser({
+        'email': email,
+        'password': password,
+        'name': name,
+        'country': country,
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account created successfully!')),
+      );
+
+      emailController.clear();
+      passwordController.clear();
+      confirmPasswordController.clear();
+      nameController.clear();
+      countryController.clear();
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Failed to create account: ${e.toString()}';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           "Create Account",
           style: TextStyle(
             color: Colors.black,
@@ -32,209 +122,173 @@ class CreateAccountScreen extends StatelessWidget {
         centerTitle: true,
         backgroundColor: Colors.white,
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                SizedBox(
-                  height: 60,
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 60),
+              ElevatedButton(
+                onPressed: () async {
+                  try {
+                    final users = await DatabaseHelper.instance.getAllUsers();
+                    showDialog(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: const Text('Database Content'),
+                        content: SingleChildScrollView(
+                          child: Text(users.isNotEmpty
+                              ? users
+                                  .map((user) => user.toString())
+                                  .join('\n\n')
+                              : 'No users found in the database.'),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text('OK'),
+                          ),
+                        ],
+                      ),
+                    );
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error fetching data: $e')),
+                    );
+                  }
+                },
+                child: const Text('Show Database Content'),
+              ),
+              const Text(
+                'Create Account',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: BackgroundPainter(),
-                  ),
-                ),
+              ),
+              const SizedBox(height: 40),
+              _buildTextField(emailController, 'Email'),
+              const SizedBox(height: 20),
+              _buildTextField(passwordController, 'Password',
+                  obscureText: true),
+              const SizedBox(height: 20),
+              _buildTextField(confirmPasswordController, 'Confirm Password',
+                  obscureText: true),
+              if (errorMessage != null)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Create Account',
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(height: 40),
-                      // حقل Email
-                      TextField(
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Color.fromARGB(255, 221, 238, 239),
-                          hintText: 'Email',
-                          hintStyle: TextStyle(color: Colors.black),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        style: TextStyle(color: Colors.white),
-                      ),
-                      SizedBox(height: 20),
-                      // حقل Password
-                      TextField(
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Color.fromARGB(255, 221, 238, 239),
-                          hintText: 'Password',
-                          hintStyle: TextStyle(color: Colors.black),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        obscureText: true,
-                        style: TextStyle(color: Colors.black),
-                      ),
-                      SizedBox(height: 20),
-                      // حقل Confirm Password
-                      TextField(
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Color.fromARGB(255, 221, 238, 239),
-                          hintText: 'Confirm Password',
-                          hintStyle: TextStyle(color: Colors.black),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        obscureText: true,
-                        style: TextStyle(color: Colors.black),
-                      ),
-                      SizedBox(height: 20),
-                      // حقل Name
-                      TextField(
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Color.fromARGB(255, 221, 238, 239),
-                          hintText: 'Name',
-                          hintStyle: TextStyle(color: Colors.black),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        style: TextStyle(color: Colors.black),
-                      ),
-                      SizedBox(height: 20),
-                      // حقل Country/Region
-                      TextField(
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Color.fromARGB(255, 221, 238, 239),
-                          hintText: 'Country/Region',
-                          hintStyle: TextStyle(color: Colors.black),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        style: TextStyle(color: Colors.black),
-                      ),
-                      SizedBox(height: 40),
-                      // زر "Sign up"
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withOpacity(0.8),
-                              blurRadius: 5,
-                              spreadRadius: 2,
-                              offset: Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color.fromARGB(255, 9, 9, 216),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: EdgeInsets.symmetric(vertical: 20),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Sign up',
-                              style: TextStyle(
-                                fontSize: 20,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 20),
-                      OutlinedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          side: BorderSide(color: Colors.white, width: 2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                        ),
-                        child: Center(
-                          child: Text(
-                            'Already have an account',
-                            style: TextStyle(
-                              fontSize: 20,
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Text(
+                    errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontSize: 14),
                   ),
                 ),
-              ],
-            ),
+              const SizedBox(height: 20),
+              _buildTextField(nameController, 'Name'),
+              const SizedBox(height: 20),
+              _buildTextField(countryController, 'Country/Region'),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: _validateAndSubmit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color.fromARGB(255, 9, 9, 216),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                ),
+                child: const Center(
+                  child: Text(
+                    'Sign up',
+                    style: TextStyle(
+                      fontSize: 20,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String hint,
+      {bool obscureText = false}) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: const Color.fromARGB(255, 221, 238, 239),
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.black),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+      ),
+      obscureText: obscureText,
+      style: const TextStyle(color: Colors.black),
     );
   }
 }
 
-class BackgroundPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white24
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+class DatabaseHelper {
+  Database? _database;
+  static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
 
-    final path1 = Path()
-      ..moveTo(size.width * 0.8, size.height * 0.1)
-      ..lineTo(size.width * 0.6, size.height * 0.3)
-      ..lineTo(size.width, size.height * 0.5)
-      ..lineTo(size.width, size.height * 0.2)
-      ..close();
+  DatabaseHelper._privateConstructor();
 
-    final path2 = Path()
-      ..moveTo(size.width * 0.1, size.height * 0.7)
-      ..lineTo(size.width * 0.3, size.height * 0.9)
-      ..lineTo(size.width * 0.2, size.height)
-      ..lineTo(0, size.height * 0.9)
-      ..close();
+  Future<void> initializeDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = p.join(dbPath, 'app.db');
 
-    canvas.drawPath(path1, paint);
-    canvas.drawPath(path2, paint);
+    _database = await openDatabase(
+      path,
+      version: 1,
+      onCreate: (db, version) async {
+        await db.execute(
+          'CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT, name TEXT, country TEXT)',
+        );
+      },
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
+  Future<void> insertUser(Map<String, dynamic> user) async {
+    try {
+      await _database?.insert('users', user);
+    } on DatabaseException catch (e) {
+      if (e.isUniqueConstraintError()) {
+        throw Exception("Email already exists.");
+      } else {
+        throw Exception("Database insertion error: $e");
+      }
+    }
+  }
+
+  Future<bool> isEmailExists(String email) async {
+    final db = _database;
+    if (db == null) throw Exception('Database is not initialized');
+
+    final result = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email],
+    );
+
+    return result.isNotEmpty; // Return true if email exists
+  }
+
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final db = _database;
+    if (db == null) throw Exception('Database is not initialized');
+
+    return await db.query('users');
   }
 }

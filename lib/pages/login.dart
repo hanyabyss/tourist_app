@@ -1,14 +1,72 @@
-// ignore_for_file: prefer_const_constructors, use_key_in_widget_constructors
+// ignore_for_file: prefer_const_constructors, use_key_in_widget_constructors, use_build_context_synchronously, library_private_types_in_public_api
 
 import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart';
+import 'dart:async';
 
-class LoginScreen extends StatelessWidget {
+import 'package:tourist_app/pages/forgot_password.dart';
+
+class LoginScreen extends StatefulWidget {
+  @override
+  _LoginScreenState createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  String? errorMessage;
+
+  Future<bool> _validateLogin(String email, String password) async {
+    final dbPath = await getDatabasesPath();
+    final path = "$dbPath/app.db";
+
+    final db = await openDatabase(path);
+    final result = await db.query(
+      'users',
+      where: 'email = ? AND password = ?',
+      whereArgs: [email, password],
+    );
+
+    return result.isNotEmpty;
+  }
+
+  void _handleLogin() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      setState(() {
+        errorMessage = 'Email and password are required';
+      });
+      return;
+    }
+
+    final isValid = await _validateLogin(email, password);
+
+    if (isValid) {
+      setState(() {
+        errorMessage = null;
+      });
+
+      // Show splash screen and navigate to home screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+            builder: (context) => SplashScreen(nextRoute: "/home_screen")),
+      );
+    } else {
+      setState(() {
+        errorMessage = 'Invalid email or password';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           "Login here",
           style: TextStyle(
             color: Colors.black,
@@ -25,151 +83,166 @@ class LoginScreen extends StatelessWidget {
               painter: BackgroundPainter(),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  'Login here',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 10),
-                Text(
-                  'Welcome back you\'ve been missed!',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 40),
-                // حقل Email
-                TextField(
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Color.fromARGB(255, 221, 238, 239),
-                    hintText: 'Email',
-                    hintStyle: TextStyle(color: Colors.black),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  const Text(
+                    'Login here',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
-                  style: TextStyle(color: Colors.black),
-                ),
-                SizedBox(height: 20),
-                // حقل Password
-                TextField(
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Color.fromARGB(255, 221, 238, 239),
-                    hintText: 'Password',
-                    hintStyle: TextStyle(color: Colors.black),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Welcome back you\'ve been missed!',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
                     ),
                   ),
-                  obscureText: true,
-                  style: TextStyle(color: Colors.black),
-                ),
-                SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {},
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.zero, // لون النص
+                  const SizedBox(height: 40),
+                  // Email field
+                  TextField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color.fromARGB(255, 221, 238, 239),
+                      hintText: 'Email',
+                      hintStyle: const TextStyle(color: Colors.black),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
                     ),
-                    child: Text(
-                      'Forgot your password?',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                  const SizedBox(height: 20),
+                  // Password field
+                  TextField(
+                    controller: passwordController,
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: const Color.fromARGB(255, 221, 238, 239),
+                      hintText: 'Password',
+                      hintStyle: const TextStyle(color: Colors.black),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    obscureText: true,
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                  if (errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Text(
+                        errorMessage!,
+                        style: const TextStyle(color: Colors.red, fontSize: 14),
+                      ),
+                    ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => ForgotPasswordScreen()),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: const Text(
+                        'Forgot your password?',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                SizedBox(height: 40),
-                // زر تسجيل الدخول
-                Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.white.withOpacity(0.8),
-                              blurRadius: 5,
-                              spreadRadius: 2,
-                              offset: Offset(0, 5),
+                  const SizedBox(height: 40),
+                  // Login button
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.white.withOpacity(0.8),
+                                blurRadius: 5,
+                                spreadRadius: 2,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            onPressed: _handleLogin,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  const Color.fromARGB(255, 9, 9, 216),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 20),
                             ),
-                          ],
+                            child: const Text(
+                              'Sign in',
+                              style: TextStyle(
+                                fontSize: 20,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
                         ),
-                        child: ElevatedButton(
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
                           onPressed: () {
-                            Navigator.pushNamed(context, "/splash_screen");
-                            Future.delayed(Duration(seconds: 2), () {
-                              Navigator.pushReplacementNamed(
-                                  context, "/home_screen");
-                            });
+                            Navigator.pushNamed(context, "/create_account");
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Color.fromARGB(255, 9, 9, 216),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            side:
+                                const BorderSide(color: Colors.white, width: 2),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10),
                             ),
-                            padding: EdgeInsets.symmetric(vertical: 20),
+                            padding: const EdgeInsets.symmetric(vertical: 20),
                           ),
-                          child: Text(
-                            'Sign in',
+                          child: const Text(
+                            'Create new account',
                             style: TextStyle(
                               fontSize: 20,
-                              color: Colors.white,
+                              color: Colors.black,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, "/create_account");
-                        },
-                        style: OutlinedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          side: BorderSide(color: Colors.white, width: 2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                        ),
-                        child: Text(
-                          'Create new account',
-                          style: TextStyle(
-                            fontSize: 20,
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -182,37 +255,35 @@ class BackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white24
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..color = Colors.blueAccent
+      ..style = PaintingStyle.fill;
 
-    final path1 = Path()
-      ..moveTo(size.width * 0.8, size.height * 0.1)
-      ..lineTo(size.width * 0.6, size.height * 0.3)
-      ..lineTo(size.width, size.height * 0.5)
-      ..lineTo(size.width, size.height * 0.2)
+    final path = Path()
+      ..moveTo(0, size.height * 0.3)
+      ..quadraticBezierTo(
+          size.width / 2, size.height * 0.4, size.width, size.height * 0.3)
+      ..lineTo(size.width, 0)
+      ..lineTo(0, 0)
       ..close();
 
-    final path2 = Path()
-      ..moveTo(size.width * 0.1, size.height * 0.7)
-      ..lineTo(size.width * 0.3, size.height * 0.9)
-      ..lineTo(size.width * 0.2, size.height)
-      ..lineTo(0, size.height * 0.9)
-      ..close();
-
-    canvas.drawPath(path1, paint);
-    canvas.drawPath(path2, paint);
+    canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class SplashScreen extends StatelessWidget {
+  final String nextRoute;
+
+  const SplashScreen({required this.nextRoute});
+
   @override
   Widget build(BuildContext context) {
+    Future.delayed(const Duration(seconds: 2), () {
+      Navigator.pushReplacementNamed(context, nextRoute);
+    });
+
     return Scaffold(
       body: Center(
         child: Image.asset(

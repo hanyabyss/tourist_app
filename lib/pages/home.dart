@@ -75,7 +75,9 @@ class home extends StatelessWidget {
                   SizedBox(width: 20),
                   // زر Register
                   OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.pushNamed(context, "/create_account");
+                    },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white,
                       side: BorderSide(color: Colors.white, width: 2),
