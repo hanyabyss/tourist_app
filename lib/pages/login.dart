@@ -2,9 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
 import 'package:tourist_app/pages/forgot_password.dart';
+import 'package:tourist_app/pages/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -48,11 +50,14 @@ class _LoginScreenState extends State<LoginScreen> {
         errorMessage = null;
       });
 
-      // Show splash screen and navigate to home screen
+      // حفظ حالة تسجيل الدخول
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('email', email);
+
+      // الانتقال إلى HomeScreen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-            builder: (context) => SplashScreen(nextRoute: "/home_screen")),
+        MaterialPageRoute(builder: (context) => HomeScreen()),
       );
     } else {
       setState(() {

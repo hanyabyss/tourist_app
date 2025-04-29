@@ -1,8 +1,5 @@
-// ignore_for_file: prefer_const_constructors, use_key_in_widget_constructors, use_build_context_synchronously, library_private_types_in_public_api
-
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as p;
+import 'package:tourist_app/pages/database.dart';
 
 class TravelTideApp extends StatelessWidget {
   @override
@@ -29,7 +26,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
 
   String? errorMessage;
 
-  // Updated email validation
   bool isValidEmail(String email) {
     final regex = RegExp(
       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
@@ -236,59 +232,5 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       obscureText: obscureText,
       style: const TextStyle(color: Colors.black),
     );
-  }
-}
-
-class DatabaseHelper {
-  Database? _database;
-  static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
-
-  DatabaseHelper._privateConstructor();
-
-  Future<void> initializeDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = p.join(dbPath, 'app.db');
-
-    _database = await openDatabase(
-      path,
-      version: 1,
-      onCreate: (db, version) async {
-        await db.execute(
-          'CREATE TABLE users (id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT UNIQUE, password TEXT, name TEXT, country TEXT)',
-        );
-      },
-    );
-  }
-
-  Future<void> insertUser(Map<String, dynamic> user) async {
-    try {
-      await _database?.insert('users', user);
-    } on DatabaseException catch (e) {
-      if (e.isUniqueConstraintError()) {
-        throw Exception("Email already exists.");
-      } else {
-        throw Exception("Database insertion error: $e");
-      }
-    }
-  }
-
-  Future<bool> isEmailExists(String email) async {
-    final db = _database;
-    if (db == null) throw Exception('Database is not initialized');
-
-    final result = await db.query(
-      'users',
-      where: 'email = ?',
-      whereArgs: [email],
-    );
-
-    return result.isNotEmpty; // Return true if email exists
-  }
-
-  Future<List<Map<String, dynamic>>> getAllUsers() async {
-    final db = _database;
-    if (db == null) throw Exception('Database is not initialized');
-
-    return await db.query('users');
   }
 }
